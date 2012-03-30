@@ -116,7 +116,7 @@ SEXP read_shp(SEXP what, SEXP format) {
     }
     shp_type = int_val(buf + 32, E_LITTLE);
     bbox = rect_val(buf + 36);
-    Rprintf("type=%d, bbox = { %g, %g, %g, %g }\n", shp_type, bbox.x1, bbox.y1, bbox.x2, bbox.y2);
+    /* Rprintf("type=%d, bbox = { %g, %g, %g, %g }\n", shp_type, bbox.x1, bbox.y1, bbox.x2, bbox.y2); */
     flen = int_val(buf + 24, E_BIG);
     flen <<= 1;
     lbuf = R_alloc(lbuf_size, 16);
@@ -236,8 +236,12 @@ SEXP read_shp(SEXP what, SEXP format) {
 		    int p0 = pt[cp], p1 = (cp + 1 < nparts) ? pt[cp + 1] : npts;
 		    memcpy(tx, xp + p0, (p1 - p0) * sizeof(double));
 		    memcpy(ty, yp + p0, (p1 - p0) * sizeof(double));
-		    tx += (p1 - p0) + 1;
-		    ty += (p1 - p0) + 1;
+		    tx += (p1 - p0);
+		    ty += (p1 - p0);
+		    if (p1 < npts) {
+		      *(tx++) = NA_REAL;
+		      *(ty++) = NA_REAL;
+		    }
 		    cp++;
 		}
 		SET_VECTOR_ELT(e, 4, nxv);
@@ -252,11 +256,14 @@ SEXP read_shp(SEXP what, SEXP format) {
 	return res;
     }	
     if (ftype == 3) {
-	int nshp = 0, npts = 0, pt = 0;
-	SEXP res = PROTECT(allocVector(VECSXP, 6)), l, xv, yv, idv, tyv, pv;
+	int nshp = 0, npts = 0;
+	SEXP res = PROTECT(mkNamed(VECSXP,
+				   (const char *[]) { "id", "type", "part", "x", "y", "" }
+				   )),
+	  l, xv, yv, idv, tyv, pv;
 	double *tx, *ty;
 	int *tp, *ti, *tt;
-	setAttrib(res, R_NamesSymbol, names);
+	
 	l = root ? root : R_NilValue;
 	while (l != R_NilValue) {
 	    nshp++;
@@ -265,15 +272,21 @@ SEXP read_shp(SEXP what, SEXP format) {
 	}
 	SET_VECTOR_ELT(res, 0, idv = allocVector(INTSXP, npts));
 	SET_VECTOR_ELT(res, 1, tyv = allocVector(INTSXP, npts));
-	/* SET_VECTOR_ELT(res, 2, xv = allocVector(REALSXP, npts));*/
-	SET_VECTOR_ELT(res, 3, pv = allocVector(INTSXP, npts));
-	SET_VECTOR_ELT(res, 4, xv = allocVector(REALSXP, npts));
-	SET_VECTOR_ELT(res, 5, yv = allocVector(REALSXP, npts));
+	SET_VECTOR_ELT(res, 2, pv = allocVector(INTSXP, npts));
+	SET_VECTOR_ELT(res, 3, xv = allocVector(REALSXP, npts));
+	SET_VECTOR_ELT(res, 4, yv = allocVector(REALSXP, npts));
 	tx = REAL(xv);
 	ty = REAL(yv);
 	tp = INTEGER(pv);
 	ti = INTEGER(idv);
 	tt = INTEGER(tyv);
+	{
+	    SEXP rn = allocVector(INTSXP, 2);
+	    INTEGER(rn)[0] = NA_INTEGER;
+	    INTEGER(rn)[1] = -npts;
+	    setAttrib(res, R_RowNamesSymbol, rn);
+	    setAttrib(res, R_ClassSymbol, mkString("data.frame"));
+	}	    
 	if (!root) {
 	    UNPROTECT(2);
 	    return res;
@@ -289,8 +302,8 @@ SEXP read_shp(SEXP what, SEXP format) {
 	    double *xp = REAL(VECTOR_ELT(e, 4));
 	    double *yp = REAL(VECTOR_ELT(e, 5));
 	    int cp = 1, nxp = (nparts > 1) ? parts[cp] : np;
-	    memcpy(tx + pt, xp, 8 * np);
-	    memcpy(ty + pt, yp, 8 * np);
+	    memcpy(tx, xp, 8 * np);
+	    memcpy(ty, yp, 8 * np);
 	    for (j = 0; j < np; j++) {
 		if (j == nxp) {
 		    cp++;
@@ -300,6 +313,11 @@ SEXP read_shp(SEXP what, SEXP format) {
 		ti[j] = rec;
 		tt[j] = sty;
 	    }
+	    tx += np;
+	    ty += np;
+	    tp += np;
+	    ti += np;
+	    tt += np;
 	    l = CDR(l);
 	}
 	UNPROTECT(root ? 3 : 2);
