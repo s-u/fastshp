@@ -12,7 +12,7 @@ read.shp(fn, format = c("list", "pairlist", "polygon", "table"))
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
-  \item{fn}{filename to read the data from}
+  \item{fn}{filename to read the data from or a raw vector with the data content}
   \item{format}{output format (see below for details), defaults to "list".}
 }
 %\details{

@@ -5,6 +5,8 @@
 #define USE_RINTERNALS
 #include <Rinternals.h>
 
+#include "io.h"
+
 #define E_LITTLE 1
 #define E_BIG    0
 
@@ -88,7 +90,7 @@ static SEXP rintv(int n, const char *ptr) {
 }
 
 SEXP read_shp(SEXP what, SEXP format) {
-    FILE *f;
+    io_t *io;
     char buf[128];
     int i, n, shp_type, ftype = asInteger(format);
     rect_t bbox;
@@ -98,20 +100,24 @@ SEXP read_shp(SEXP what, SEXP format) {
     int lbuf_size = 65536; /* # of points in the large points buffer */
     static const char *nam[] = { "id", "type", "box", "parts", "x", "y" };
 
-    if (TYPEOF(what) != STRSXP || LENGTH(what) != 1)
-	Rf_error("source must be a file name");
-    f = fopen(CHAR(STRING_ELT(what, 0)), "rb");
-    if (!f)
-	Rf_error("cannot open '%s'", CHAR(STRING_ELT(what, 0)));
-    n = fread(buf, 1, 100, f);
+    if (TYPEOF(what) == RAWSXP)
+	io = io_open_raw(what);
+    else {
+	if (TYPEOF(what) != STRSXP || LENGTH(what) != 1)
+	    Rf_error("source must be a file name or a raw vector");
+	io = io_open_file(CHAR(STRING_ELT(what, 0)), "rb");
+	if (!io)
+	    Rf_error("cannot open '%s'", CHAR(STRING_ELT(what, 0)));
+    }
+    n = io_read(io, buf, 1, 100);
     if (n < 100) {
-	fclose(f);
+	io_close(io);
 	Rf_error("read error while reading the file header (corrupted file?)");
     }
     i = 1;
     native_endian = (*((char*)&i) == 1) ? E_LITTLE : E_BIG;
     if (int_val(buf, E_BIG) != 0x270a) {
-	fclose(f);
+	io_close(io);
 	Rf_error("invalid file (expected type 0x%x, found 0x%x)", 0x270a, int_val(buf, E_BIG));
     }
     shp_type = int_val(buf + 32, E_LITTLE);
@@ -122,9 +128,9 @@ SEXP read_shp(SEXP what, SEXP format) {
     lbuf = R_alloc(lbuf_size, 16);
     names = PROTECT(allocVector(STRSXP, 6));
     for (i = 0; i < 6; i++) SET_STRING_ELT(names, i, mkChar(nam[i]));
-    while (!feof(f) && pos < flen) {
+    while (!io_eof(io) && pos < flen) {
 	int rec, len, sty = 0;
-	if ((n = fread(buf, 1, 12, f)) < 8) {
+	if ((n = io_read(io, buf, 1, 12)) < 8) {
 	    Rf_warning("Read error at position %ld, returning result so far", pos);
 	    break;
 	}
@@ -132,7 +138,7 @@ SEXP read_shp(SEXP what, SEXP format) {
 	len = int_val(buf + 4, E_BIG);
 	if (n == 12) sty = int_val(buf + 8, E_LITTLE);
 	if (len < 0 || sty < 0 || sty > 256) {
-	    fclose(f);
+	    io_close(io);
 	    Rf_error("invalid chunk at %ld (type=%d, length/2=%d), aborting", pos, sty, len);
 	}
 	len <<= 1;
@@ -152,7 +158,7 @@ SEXP read_shp(SEXP what, SEXP format) {
 		tail = nl;
 	    }
 	    setAttrib(v, R_NamesSymbol, names);
-	    if ((n = fread(buf + 12, 1, 40, f)) != 40) {
+	    if ((n = io_read(io, buf + 12, 1, 40)) != 40) {
 		Rf_warning("Read error at position %ld (id=%d, type=%d), returning result so far", pos, rec, sty);
 		break;
 	    }
@@ -167,12 +173,12 @@ SEXP read_shp(SEXP what, SEXP format) {
 		while (lbuf_size <= npts) lbuf_size <<= 1;
 		lbuf = R_alloc(lbuf_size, 16);
 	    }
-	    if (fread(lbuf, 4, npart, f) != npart) {
+	    if (io_read(io, lbuf, 4, npart) != npart) {
 		Rf_warning("Read error at position %ld (id=%d, type=%d), returning result so far", pos, rec, sty);
 		break;
 	    }
 	    SET_VECTOR_ELT(v, 3, rintv(npart, lbuf));
-	    if ((n = fread(lbuf, 16, npts, f)) != npts) {
+	    if ((n = io_read(io, lbuf, 16, npts)) != npts) {
 		Rf_warning("Read error (%d != %d) at position %ld (id=%d, type=%d), returning result so far", n, npts, pos, rec, sty);
 		break;
 	    }
@@ -186,9 +192,9 @@ SEXP read_shp(SEXP what, SEXP format) {
 	    }
 	}
 	pos += len;
-	fseek(f, pos, SEEK_SET); /* skip unknown records */
+	io_seek(io, pos); /* skip unknown records */
     }
-    fclose(f);
+    io_close(io);
     if (ftype == 1) {
 	SEXP res, l;
 	i = 0;
