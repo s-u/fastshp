@@ -3,9 +3,11 @@
 #define USE_RINTERNALS 1
 #include <Rinternals.h>
 
-SEXP thin(SEXP xv, SEXP yv, SEXP stol, SEXP lock) {
+#define ALG_N2  2
+
+SEXP thin(SEXP xv, SEXP yv, SEXP stol, SEXP lock, SEXP method) {
     SEXP res;
-    int up = 0, n, *keep, i = 0, a = 0;
+    int up = 0, n, *keep, i = 0, a = 0, alg = asInteger(method), lps = 0;
     double *x, *y, tol = asReal(stol);
     if (TYPEOF(xv) != REALSXP) {
 	xv = PROTECT(coerceVector(xv, REALSXP));
@@ -46,7 +48,7 @@ SEXP thin(SEXP xv, SEXP yv, SEXP stol, SEXP lock) {
     } else if (lock != R_NilValue)
 	Rf_error("lock must be logical or numeric vector or NULL");
     /* always keep the first point */
-    keep[0] = 1;
+    keep[lps = 0] = 1;
     tol = tol * tol; /* to avoid sqrt() we compare t^2 against tol^2 */
     i = 1;
     while (i < n) {
@@ -54,7 +56,7 @@ SEXP thin(SEXP xv, SEXP yv, SEXP stol, SEXP lock) {
 	    a = i;
 	else {
 	    double ax = x[i] - x[a], ay = y[i] - y[a];
-	    int b_i = (i < n - 1) ? (i + 1) : 0; /* loop over at the end */
+	    int b_i = (i < n - 1 && !ISNA(x[i + 1])) ? (i + 1) : lps; /* loop over at the end */
 	    double bx = x[b_i] - x[a], by = y[b_i] - y[a];
 	    double a_b = ax * bx + ay * by; /* dot product */
 	    if (a_b > 0.0) { /* we can only thin convex parts */
@@ -64,7 +66,15 @@ SEXP thin(SEXP xv, SEXP yv, SEXP stol, SEXP lock) {
 		if (t >= tol) { /* above tolerance, keep */
 		    keep[i] = 1;
 		    a = i;
-		}		    
+		}
+	    } else if (a_b == 0.0 && bx == 0.0 && by == 0.0 && (ax != 0.0 || ay != 0.0)) keep[i] = 1; /* line */
+	    if (ISNA(x[i + 1])) {
+		keep[i + 1] = 1;
+		if (lps == i - 1) keep[i] = 1;
+		lps = i + 2;
+		while (lps < n && ISNA(lps)) lps++;
+		if (lps < n) keep[lps] = 1;
+		i = lps;
 	    }
 	}
 	i++;
