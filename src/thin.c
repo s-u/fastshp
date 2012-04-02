@@ -66,6 +66,22 @@ SEXP thin(SEXP xv, SEXP yv, SEXP stol, SEXP lock, SEXP method) {
 		if (t >= tol) { /* above tolerance, keep */
 		    keep[i] = 1;
 		    a = i;
+		} else if (i - a > 1 && alg == 2) { /* conservative n^2 algorithm - check back on previous points */
+		    int j = a + 1;
+		    while (j < i) { /* beside us, check all previously removed points as well */
+			ax = x[j] - x[a]; ay = y[j] - y[a];
+			a_b = ax *bx + ay *by;
+			if (a_b > 0.0) {
+			    aa = ax * ax + ay * ay;
+			    t = aa - (a_b * a_b) / bb;
+			    if (t >= tol) {
+				keep[i] = 1;
+				a = i;
+				break;
+			    }
+			}
+			j++;
+		    }
 		}
 	    } else if (a_b == 0.0 && bx == 0.0 && by == 0.0 && (ax != 0.0 || ay != 0.0)) keep[i] = 1; /* line */
 	    if (ISNA(x[i + 1])) {
