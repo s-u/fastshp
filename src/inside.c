@@ -76,6 +76,9 @@ SEXP shp_inside(SEXP slist, SEXP pxv, SEXP pyv) {
 	    }
 	}
     }
+    if (mp < np) /* replace 0 (no match) with NA */
+	for (i = 0; i < np; i++)
+	    if (r[i] == 0) r[i] = NA_INTEGER;
     if (up) UNPROTECT(up);
     return res;
 }
