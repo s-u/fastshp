@@ -169,7 +169,7 @@ SEXP read_shp(SEXP what, SEXP format) {
 	    SET_VECTOR_ELT(v, 0, ScalarInteger(rec));
 	    SET_VECTOR_ELT(v, 1, ScalarInteger(sty));
 	    SET_VECTOR_ELT(v, 2, rbox(box));
-	    if (npts <= lbuf_size) {
+	    if (npts >= lbuf_size) {
 		while (lbuf_size <= npts) lbuf_size <<= 1;
 		lbuf = R_alloc(lbuf_size, 16);
 	    }
