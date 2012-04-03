@@ -59,10 +59,11 @@ thin(x, y, tolerance = 1e-4, lock = NULL, method = 1L)
 Simon Urbanek
 }
 \examples{
+  # load 2010 Census TIGER/Line(TM) state data (if included)
   shp <- system.file("shp","tl_2010_us_state10.shp.xz",package="fastshp")
   if (nzchar(shp)) {
     s <- read.shp(xzfile(shp, "rb"), "pol")
-    # thin on the cylindrical projection
+    # thin on a cylindrical projection (around ca. 37 deg lat)
     t <- lapply(s, function(o) thin(o$x / 1.25, o$y, 1e-3))
     par(mar = rep(0, 4))
     plot(c(-125,-67), c(25, 49.4), asp=1.25, ty='n', axes=FALSE)

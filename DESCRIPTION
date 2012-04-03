@@ -3,6 +3,6 @@ Version: 0.1-0
 Title: Fast routines for hanlding large ESRI shapefiles (.shp)
 Author: Simon Urbanek <simon.urbanek@r-project.org>
 Maintainer: Simon Urbanek <simon.urbanek@r-project.org>
-Description: Routines for reading large shapefiles.
+Description: Routines for handling of large ESRI shapefiles (.shp). This includes reading, thinning of points and matching of points to containing shapes. The main aim for this package is to provide the speed to support large shapefiles (millions of points). It is several orders of maginute faster than some other shapefile packages.
 License: GPL-2
 URL: http://www.rforge.net/fastshp
