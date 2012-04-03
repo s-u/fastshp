@@ -216,6 +216,13 @@ SEXP read_shp(SEXP what, SEXP format, SEXP do_close) {
 	    i++;
 	    l = CDR(l);
 	}
+	{
+	    SEXP bbs = install("bbox");
+	    SEXP bbv = allocVector(REALSXP, 4);
+	    memcpy(REAL(bbv), &bbox, sizeof(bbox));
+	    setAttrib(res, bbs, bbv);
+	    setAttrib(res, R_ClassSymbol, mkString("shp"));
+	}
 	UNPROTECT(root ? 3 : 2);
 	return res;
     }
@@ -262,6 +269,13 @@ SEXP read_shp(SEXP what, SEXP format, SEXP do_close) {
 	    SET_VECTOR_ELT(res, i, e);
 	    i++;
 	    l = CDR(l);
+	}
+	{
+	    SEXP bbs = install("bbox");
+	    SEXP bbv = allocVector(REALSXP, 4);
+	    memcpy(REAL(bbv), &bbox, sizeof(bbox));
+	    setAttrib(res, bbs, bbv);
+	    setAttrib(res, R_ClassSymbol, mkString("shp"));
 	}
 	UNPROTECT(root ? 3 : 2);
 	return res;
