@@ -55,12 +55,6 @@ typedef struct io_file {
     FILE *f;
 } io_file_t;
 
-typedef struct io_raw {
-    io_t io;
-    SEXP raw;
-    int pos, len;
-} io_raw_t;
-
 static int io_file_read(io_t* io, void *buf, int size, int len) {
     io_file_t *iof = (io_file_t*) io;
     if (!iof || !iof->f) return -1;
@@ -110,6 +104,14 @@ static io_t *io_open_file(const char *fn, const char *mode) {
     return (io_t*) io;
 }
 
+/* --- raw vectors --- */
+
+typedef struct io_raw {
+    io_t io;
+    SEXP raw;
+    int pos, len;
+} io_raw_t;
+
 static int io_raw_read(io_t* io, void *buf, int size, int n) {
     io_raw_t *ior = (io_raw_t*) io;
     int len = size * n;
@@ -141,7 +143,7 @@ static int io_raw_write(io_t* io, const void *buf, int size, int n) {
 static int io_raw_seek(io_t* io, long where) {
     io_raw_t *ior = (io_raw_t*) io;
     if (where < 0)
-	where = ior->len + 1 + where;
+	where += ior->len;
     if (where > ior->len)
 	where = ior->len;
     ior->pos = where;
@@ -172,6 +174,93 @@ static io_t *io_open_raw(SEXP what) {
     io->io.seek = io_raw_seek;
     io->io.eof = io_raw_eof;
     io->io.close = io_raw_close;
+    return (io_t*) io;
+}
+
+/* --- connections --- */
+
+typedef struct io_conn {
+    io_t io;
+    SEXP c;
+    int pos, close_fin;
+} io_conn_t;
+
+static SEXP raw0, readBin_, writeBin_, seek_, close_;
+
+static int io_conn_read(io_t* io, void *buf, int size, int n) {
+    io_conn_t *ioc = (io_conn_t*) io;
+    int len = size * n;
+    SEXP x = PROTECT(lang4(readBin_, ioc->c, raw0, ScalarInteger(len)));
+    SEXP y = eval(x, R_GlobalEnv);
+    UNPROTECT(1);
+    ioc->pos += LENGTH(y);
+    memcpy(buf, RAW(y), LENGTH(y));
+    return len / size;
+}
+
+static int io_conn_write(io_t* io, const void *buf, int size, int n) {
+    io_conn_t *ioc = (io_conn_t*) io;
+    int len = size * n;
+    SEXP v = allocVector(RAWSXP, len);
+    SEXP x = PROTECT(lang3(writeBin_, v, ioc->c));
+    memcpy(RAW(v), buf, len);
+    eval(x, R_GlobalEnv);
+    UNPROTECT(1);
+    ioc->pos += LENGTH(v);
+    return LENGTH(v) / size;
+}
+
+static int io_conn_seek(io_t* io, long where) {
+    io_conn_t *ioc = (io_conn_t*) io;
+    SEXP x;
+    if (ioc->pos == where) return 0;
+    if (where < 0) {
+	SEXP se = PROTECT(mkString("end"));
+	x = PROTECT(lang4(seek_, ioc->c, ScalarInteger(-where), se));
+    } else
+	x = PROTECT(lang3(seek_, ioc->c, ScalarInteger(where)));
+    eval(x, R_GlobalEnv);
+    UNPROTECT((where < 0) ? 2 : 1);
+    return 0;
+}
+
+/* WARNING: connections have no EOF capability AFAICS */
+static int io_conn_eof(io_t* io) {
+    return 0;
+}
+
+static void io_conn_close(io_t* io) {
+    io_conn_t *ioc = (io_conn_t*) io;
+    if (io) {
+	if (ioc->close_fin) {
+	    SEXP x = PROTECT(lang2(close_, ioc->c));
+	    eval(x, R_GlobalEnv);
+	    UNPROTECT(1);
+	}
+	R_ReleaseObject(ioc->c);
+	Free(io);
+    }
+}
+
+static io_t *io_open_conn(SEXP what, int close_on_free) {
+    io_conn_t *io = (io_conn_t*) Calloc(1, io_conn_t);
+    io->c = what;
+    if (!raw0) {
+	raw0 = allocVector(RAWSXP, 0);
+	R_PreserveObject(raw0);
+	readBin_ = install("readBin");
+	writeBin_ = install("writeBin");
+	seek_ = install("seek");
+	close_ = install("close");
+    }
+    R_PreserveObject(what);
+    io->pos = 0;
+    io->close_fin = close_on_free;
+    io->io.read = io_conn_read;
+    io->io.write = io_conn_write;
+    io->io.seek = io_conn_seek;
+    io->io.eof = io_conn_eof;
+    io->io.close = io_conn_close;
     return (io_t*) io;
 }
 

@@ -4,16 +4,21 @@
   Read ESRI shapefile
 }
 \description{
-  \code{read.shp} reads ESRI shapefile format (\code{.shp}). Currtenly
-  only polygon and polylines are supported.
+  \code{read.shp} reads ESRI shapefile format (\code{.shp}). Currently
+  only polygons and polylines are supported.
 }
 \usage{
-read.shp(fn, format = c("list", "pairlist", "polygon", "table"))
+read.shp(where, format = c("list", "pairlist", "polygon", "table"),
+         close = TRUE)
 }
-%- maybe also 'usage' for other objects documented here.
 \arguments{
-  \item{fn}{filename to read the data from or a raw vector with the data content}
-  \item{format}{output format (see below for details), defaults to "list".}
+  \item{where}{filename to read the data from or a binary connection or
+    a raw vector with the data content}
+  \item{format}{output format (see below for details), defaults to
+    "list".}
+  \item{close}{if \code{where} is a connection then this flag determines
+    whether the connection will be closed automatically after reading
+    the shapefile (\code{TRUE}) or not (\code{FALSE}).}
 }
 %\details{
 %}
@@ -60,6 +65,9 @@ read.shp(fn, format = c("list", "pairlist", "polygon", "table"))
 }
 %\seealso{
 %}
-%\examples{
-%}
+\examples{
+  # Census 2010 TIGER/Line(TM) state shapefile
+  fn <- system.file("shp", "tl_2010_us_state10.shp.xz", package="fastshp")
+  s <- read.shp(xzfile(fn, "rb"))
+}
 \keyword{IO}

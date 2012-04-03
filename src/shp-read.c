@@ -89,10 +89,10 @@ static SEXP rintv(int n, const char *ptr) {
     return v;
 }
 
-SEXP read_shp(SEXP what, SEXP format) {
+SEXP read_shp(SEXP what, SEXP format, SEXP do_close) {
     io_t *io;
     char buf[128];
-    int i, n, shp_type, ftype = asInteger(format);
+    int i, n, shp_type, ftype = asInteger(format), close_c = asInteger(do_close);
     rect_t bbox;
     long flen, pos = 100;
     SEXP root = 0, tail = 0, names;
@@ -102,9 +102,11 @@ SEXP read_shp(SEXP what, SEXP format) {
 
     if (TYPEOF(what) == RAWSXP)
 	io = io_open_raw(what);
+    else if (TYPEOF(what) == INTSXP && inherits(what, "connection"))
+	io = io_open_conn(what, close_c);
     else {
 	if (TYPEOF(what) != STRSXP || LENGTH(what) != 1)
-	    Rf_error("source must be a file name or a raw vector");
+	    Rf_error("source must be a file name, connection or a raw vector");
 	io = io_open_file(CHAR(STRING_ELT(what, 0)), "rb");
 	if (!io)
 	    Rf_error("cannot open '%s'", CHAR(STRING_ELT(what, 0)));
@@ -190,9 +192,12 @@ SEXP read_shp(SEXP what, SEXP format) {
 		xx[i] = double_val(lbuf + i * 16, E_LITTLE);
 		yy[i] = double_val(lbuf + i * 16 + 8, E_LITTLE);
 	    }
+	    pos += len;
+	} else {
+	    /* other: 1 = point (X,Y)
+	     *        8 = multipoint (MBR, # pts, points) */
+	    io_seek(io, pos); /* skip unknown records */
 	}
-	pos += len;
-	io_seek(io, pos); /* skip unknown records */
     }
     io_close(io);
     if (ftype == 1) {
@@ -331,5 +336,4 @@ SEXP read_shp(SEXP what, SEXP format) {
     }
     UNPROTECT(root ? 2 : 1);
     return root ? root : R_NilValue;
-    // return R_NilValue;
 }

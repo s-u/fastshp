@@ -61,9 +61,7 @@ Simon Urbanek
 \examples{
   shp <- system.file("shp","tl_2010_us_state10.shp.xz",package="fastshp")
   if (nzchar(shp)) {
-    io <- xzfile(shp, "rb")
-    s <- read.shp(readBin(io, raw(), 14000000L), "pol")
-    close(io)
+    s <- read.shp(xzfile(shp, "rb"), "pol")
     # thin on the cylindrical projection
     t <- lapply(s, function(o) thin(o$x / 1.25, o$y, 1e-3))
     par(mar = rep(0, 4))
