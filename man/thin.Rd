@@ -8,7 +8,7 @@
   are deemed to have no visual effect under the given tolerance.
 }
 \usage{
-thin(x, y, tolerance = 1e-4, lock = NULL, method = 1L)
+thin(x, y, tolerance = 1e-4, lock = NULL, method = 2L)
 }
 \arguments{
   \item{x}{x coordinates of the points}
