@@ -52,6 +52,18 @@ SEXP shp_inside(SEXP slist, SEXP pxv, SEXP pyv) {
 		    if (cd && x[k2] - (x[k2] - x[k]) * (y[k2] - y[k]) / (y[k2] - Y) - X > 0)
 			ci += cd;
 		    k++;
+		    if (ISNA(x[k])) { /* end of polygon -> check now and reset ci for the next polygon */
+			ls = ++k;
+			if (ci == 1 && !r[j]) {
+			    mp++;
+			    r[j] = i + 1;
+			    if (mp >= np) { /* if all points got matched, get out */
+				i = ns;
+				break;
+			    }
+			}
+			ci = 0;
+		    }
 		}
 		if (ci == 1 && !r[j]) {
 		    mp++;

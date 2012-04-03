@@ -1,2 +1,2 @@
 useDynLib(fastshp)
-export(read.shp, thin)
+export(read.shp, thin, inside)
