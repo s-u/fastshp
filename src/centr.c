@@ -7,9 +7,13 @@
 SEXP shp_centroids(SEXP slist) {
     SEXP res, rn;
     double *cx, *cy, *a;
-    int i, ns;
-    if (TYPEOF(slist) != VECSXP || !inherits(slist, "shp"))
-	Rf_error("input must be a list of shapes (shp object)");
+    int i, ns, is_shp;
+    if (TYPEOF(slist) == VECSXP && inherits(slist, "shp"))
+	is_shp = 1;
+    else if (TYPEOF(slist) == VECSXP)
+	is_shp = 0;
+    else
+	Rf_error("input must be a list of shapes (shp object) or a list of coordinate vector pairs");
     ns = LENGTH(slist);
     res = PROTECT(mkNamed(VECSXP,
 			  (const char *[]) { "cx", "cy", "area", "" }));
@@ -17,16 +21,26 @@ SEXP shp_centroids(SEXP slist) {
     cy = REAL(SET_VECTOR_ELT(res, 1, allocVector(REALSXP, ns)));
     a = REAL(SET_VECTOR_ELT(res, 2, allocVector(REALSXP, ns)));    
     for (i = 0; i < ns; i++) {
-	int *pp, np, j;
+	int np, j;
 	double *px, *py,  X = 0, Y = 0, A = 0;
-	SEXP shp = VECTOR_ELT(slist, i), pv = VECTOR_ELT(shp, 3);
-	if (LENGTH(pv) > 1) {
-	    Rf_warning("shape[%d] has more than one part, using only the first part", i + 1);
-	    np = INTEGER(pv)[1];
+	SEXP shp = VECTOR_ELT(slist, i);
+	if (is_shp) {
+	    SEXP pv = VECTOR_ELT(shp, 3);
+	    if (LENGTH(pv) > 1) {
+		Rf_warning("shape[%d] has more than one part, using only the first part", i + 1);
+		np = INTEGER(pv)[1];
+	    }
+	    px = REAL(VECTOR_ELT(shp, 4));
+	    py = REAL(VECTOR_ELT(shp, 5));
+	    np = LENGTH(VECTOR_ELT(shp, 4));
+	} else {
+	    if (TYPEOF(VECTOR_ELT(shp, 0)) != REALSXP ||
+		TYPEOF(VECTOR_ELT(shp, 1)) != REALSXP ||
+		(np = LENGTH(VECTOR_ELT(shp, 0))) != LENGTH(VECTOR_ELT(shp, 1)))
+		Rf_error("list element %d contains invalid coordinate pair", i + 1);
+	    px = REAL(VECTOR_ELT(shp, 0));
+	    py = REAL(VECTOR_ELT(shp, 1));
 	}
-	px = REAL(VECTOR_ELT(shp, 4));
-	py = REAL(VECTOR_ELT(shp, 5));
-	np = LENGTH(VECTOR_ELT(shp, 4));
 	for (j = 0; j < np; j++) {
 	    double x_i = px[j], y_i = py[j];
 	    int i1 = (j == np - 1) ? 0 : (j + 1);
