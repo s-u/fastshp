@@ -10,7 +10,10 @@
 centr(shp)
 }
 \arguments{
-  \item{shp}{shapefile object as returned by \code{read.shp(..., type='list')}}
+  \item{shp}{shapefile object as returned by \code{read.shp(...,
+      type='list')} or a list of coordinate vector pairs, i.e.,
+    \code{list(shape1=list(x, y), shape2=list(x, y), ...)} where each
+    coordinate vector is a real vector}
 }
 %\details{
 %}
@@ -22,7 +25,7 @@ Data frame with columns:
 }
 \note{
   If a shape has more than one part, only the centroid and area of the
-  first part is computed.
+  first part is computed, subsequent parts are discarded with a warning.
 }
 \seealso{
   \code{\link{read.shp}}
