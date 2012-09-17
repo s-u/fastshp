@@ -5,9 +5,9 @@
 
 #define ALG_N2  2
 
-SEXP thin(SEXP xv, SEXP yv, SEXP stol, SEXP lock, SEXP method) {
+SEXP thin(SEXP xv, SEXP yv, SEXP stol, SEXP lock, SEXP method, SEXP idv) {
     SEXP res;
-    int up = 0, n, *keep, i = 0, a = 0, alg = asInteger(method), lps = 0;
+    int up = 0, n, *keep, i = 0, a = 0, alg = asInteger(method), lps = 0, *id = 0;
     double *x, *y, tol = asReal(stol);
     if (TYPEOF(xv) != REALSXP) {
 	xv = PROTECT(coerceVector(xv, REALSXP));
@@ -21,6 +21,7 @@ SEXP thin(SEXP xv, SEXP yv, SEXP stol, SEXP lock, SEXP method) {
     y = REAL(yv);
     n = LENGTH(xv);
     if (LENGTH(yv) != n) Rf_error("x and y must be of the same length");
+    if (TYPEOF(idv) == INTSXP && LENGTH(idv) == n) id = INTEGER(idv);
     if (n < 3) { /* need at least 3 points for thinning */
 	res = allocVector(LGLSXP, n);
 	while (i < n) LOGICAL(res)[i++] = 1;
@@ -56,7 +57,7 @@ SEXP thin(SEXP xv, SEXP yv, SEXP stol, SEXP lock, SEXP method) {
 	    a = i;
 	else {
 	    double ax = x[i] - x[a], ay = y[i] - y[a];
-	    int b_i = (i < n - 1 && !ISNA(x[i + 1])) ? (i + 1) : lps; /* loop over at the end */
+	    int b_i = (i < n - 1 && !ISNA(x[i + 1]) && (!id || id[i] == id[i - 1])) ? (i + 1) : lps; /* loop over at the end */
 	    double bx = x[b_i] - x[a], by = y[b_i] - y[a];
 	    double a_b = ax * bx + ay * by; /* dot product */
 	    if (a_b > 0.0) { /* we can only thin convex parts */
@@ -84,13 +85,19 @@ SEXP thin(SEXP xv, SEXP yv, SEXP stol, SEXP lock, SEXP method) {
 		    }
 		}
 	    } else if (a_b == 0.0 && bx == 0.0 && by == 0.0 && (ax != 0.0 || ay != 0.0)) keep[i] = 1; /* line */
-	    if (ISNA(x[i + 1])) {
-		keep[i + 1] = 1;
-		if (lps == i - 1) keep[i] = 1;
-		lps = i + 2;
-		while (lps < n && ISNA(lps)) lps++;
-		if (lps < n) keep[lps] = 1;
-		i = lps;
+	    if (i + 1 < n) {
+		if (ISNA(x[i + 1])) {
+		    keep[i + 1] = 1;
+		    if (lps == i - 1) keep[i] = 1;
+		    lps = i + 2;
+		    while (lps < n && ISNA(lps)) lps++;
+		    if (lps < n) keep[lps] = 1;
+		    i = lps;
+		} else if (id && id[i + 1] != id[i]) {
+		    lps = i + 1;
+		    keep[i + 1] = 1;
+		    i = lps;
+		}
 	    }
 	}
 	i++;
