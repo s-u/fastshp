@@ -53,10 +53,7 @@ SEXP merge_pts(SEXP X, SEXP Y, SEXP ID) {
 	next[i] = (i < n - 1 && id[i + 1] == lid) ? (i + 1) : lids;
     }
 
-    /* FIXME: do we really need a copy of next to track continuation points?
-       Maybe we can re-use next ... need to think about it ... */
     cont = INTEGER(PROTECT(allocVector(INTSXP, n)));
-    memcpy(cont, next, sizeof(int) * n);
 
     /* sort all points so we can find duplicates */
     qs(x, y, perm, 0, n - 1);
@@ -87,13 +84,16 @@ SEXP merge_pts(SEXP X, SEXP Y, SEXP ID) {
 				prev2++;
 			}
 			/* ok, now check if those share opposite segments */
-			if (x[next1] == x[prev2] && y[next1] == y[prev2]) {
+			if (prev2 < n && x[next1] == x[prev2] && y[next1] == y[prev2]) {
 			    /* they do! flag the segments (pt1->next1) and (prev2->pt2) */
 			    tag[pt1]   |= 1;  tag[prev2] |= 1;
 			    tag[next1] |= 2;  tag[pt2]   |= 2;
 			    /* mark the continuation points (for points with tag == 1) */
-			    cont[pt1] = next[pt2];
-			    cont[prev2] = next[next1];
+			    /* the actual continuation is the *next* point from there
+			       we can't use next[..] on this here becasue the next point may
+			       change as we continue segment removal */
+			    cont[pt1] = pt2;
+			    cont[prev2] = next1;
 			}
 		    }
 	    i = k - 1; /* skip the block */
@@ -102,10 +102,10 @@ SEXP merge_pts(SEXP X, SEXP Y, SEXP ID) {
 
     /* count the number of points that will be left */
     nn = n;
-    for (i = 0; i < n; i++) {
-	Rprintf("%d ", tag[i]);
+    for (i = 0; i < n; i++)
 	if (tag[i] == 3) nn--;
-    }
+    /* this is still an over-extimate, points with tag 1-2 will be
+       de-duped, 
 
     /* allocate the result vectors */
     ox   =    REAL(SET_VECTOR_ELT(res, 0, allocVector(REALSXP, nn)));
@@ -117,7 +117,7 @@ SEXP merge_pts(SEXP X, SEXP Y, SEXP ID) {
 	    int cid = id[i];
 	    int j = i, o0 = oi;
 	    while (tag[j] < 4) {
-		if (tag[j] < 3) { /* tag==3 shoudl not really happen once we're going */
+		if (tag[j] < 3) { /* tag == 3 should not really happen once we're going */
 		    if (oi >= nn)
 			Rf_error("internal error - attempt to create more than the estimated %d output points", nn);
 		    ox[oi] = x[j];
@@ -126,14 +126,22 @@ SEXP merge_pts(SEXP X, SEXP Y, SEXP ID) {
 		    oi++;
 		}
 		{
-		    int nj = (tag[j] == 1) ? cont[j] : next[j];
+		    int nj = next[j];
+		    if (tag[j] == 1) { /* if the forward point was removed, we have to find the continuation point */
+			nj = cont[j];
+			while (tag[nj] == 3) /* the continuation point was removed - we need its continuation */
+			    nj = cont[nj];
+			/* we have to tag the continuation point so it doesn't get used
+			   as a start for another ID - it is not a removed point */
+			tag[nj] = 4;
+			/* continuation points are by definition at the same location,
+			   so the point to move to will be the next point after the ct point */
+			nj = next[nj];
+		    }
 		    tag[j] = 4; /* tag as processed */
 		    j = nj;
 		}
 	    }
-	    /* FIXME: how can we get singleton points?!? */
-	    if (oi == o0 + 1)
-		oi--;
 	}
     if (oi < nn) {
 	SETLENGTH(VECTOR_ELT(res, 0), oi);
