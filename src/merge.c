@@ -104,8 +104,8 @@ SEXP merge_pts(SEXP X, SEXP Y, SEXP ID) {
     nn = n;
     for (i = 0; i < n; i++)
 	if (tag[i] == 3) nn--;
-    /* this is still an over-extimate, points with tag 1-2 will be
-       de-duped, 
+    /* FIXME: this is still an over-extimate, points with tag 1-2 will be
+       de-duped */
 
     /* allocate the result vectors */
     ox   =    REAL(SET_VECTOR_ELT(res, 0, allocVector(REALSXP, nn)));
@@ -115,7 +115,7 @@ SEXP merge_pts(SEXP X, SEXP Y, SEXP ID) {
     for (i = 0; i < n; i++)
 	if (tag[i] < 3) { /* unprocessed, unremoved ID */
 	    int cid = id[i];
-	    int j = i, o0 = oi;
+	    int j = i;
 	    while (tag[j] < 4) {
 		if (tag[j] < 3) { /* tag == 3 should not really happen once we're going */
 		    if (oi >= nn)
