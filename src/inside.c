@@ -4,10 +4,11 @@
 #define USE_RINTERNALS
 #include <Rinternals.h>
 
-SEXP shp_inside(SEXP slist, SEXP pxv, SEXP pyv) {
+SEXP shp_inside(SEXP slist, SEXP pxv, SEXP pyv, SEXP clockw) {
     SEXP xv, yv, pv, res;
     double *x, *y, *px, *py;
-    int *p, up = 0, *r, np, ns, mp = 0, i;
+    int *p, up = 0, *r, np, ns, mp = 0, i,
+      expected = (asInteger(clockw) == TRUE) ? 1 : -1;
     if (TYPEOF(slist) != VECSXP || !inherits(slist, "shp"))
 	Rf_error("input must be a list of shapes (shp object)");
     if (LENGTH(slist) == 0)
@@ -54,7 +55,7 @@ SEXP shp_inside(SEXP slist, SEXP pxv, SEXP pyv) {
 		    k++;
 		    if (ISNA(x[k])) { /* end of polygon -> check now and reset ci for the next polygon */
 			ls = ++k;
-			if (ci == 1 && !r[j]) {
+			if (ci == expected && !r[j]) {
 			    mp++;
 			    r[j] = i + 1;
 			    if (mp >= np) { /* if all points got matched, get out */
@@ -65,7 +66,7 @@ SEXP shp_inside(SEXP slist, SEXP pxv, SEXP pyv) {
 			ci = 0;
 		    }
 		}
-		if (ci == 1 && !r[j]) {
+		if (ci == expected && !r[j]) {
 		    mp++;
 		    r[j] = i + 1;
 		    if (mp >= np) { /* if all points got matched, get out */
