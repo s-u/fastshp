@@ -49,9 +49,23 @@ SEXP shp_inside(SEXP slist, SEXP pxv, SEXP pyv, SEXP clockw) {
 			cd = -1;
 		    else if (y[k] >= Y && y[k2] < Y)
 			cd = 1;
-		    /* head right from the point and see if k->k2 intersects */
-		    if (cd && x[k2] - (x[k2] - x[k]) * (y[k2] - y[k]) / (y[k2] - Y) - X > 0)
-			ci += cd;
+		    if (cd) {
+			/* head right from the point and see if k->k2 intersects */
+			/* to avoid intersect computation, first check if we don't need to since both points are beyond */
+			if (x[k2] > X && x[k] > X)
+			    ci += cd;
+			else if (!(x[k2] < X && x[k] < X)) { /* only if there is doubt, compute the intersecting point */
+			    /* for numerical stability pick the longer fraction */
+			    double dy1 = y[k] - Y, dy2 = y[k2] - Y, dx;
+			    if ((cd == 1 && dy2 > dy1) || (cd == -1 && dy2 < dy1))
+				dx = x[k2] - (x[k2] - x[k] ) * (y[k2] - y[k]) / (y[k2] - Y) - X;
+			    else
+				dx = x[k]  - (x[k]  - x[k2]) * (y[k] - y[k2]) / (y[k]  - Y) - X;
+			    if (dx > 0.0)
+				ci += cd;
+			    /* Rprintf("%d[%d,%d]: cd = %d, intersect at %g (ci = %d after)\n", i+1, k, k2, cd, dx, ci); */
+			}
+		    }
 		    k++;
 		    if (ISNA(x[k])) { /* end of polygon -> check now and reset ci for the next polygon */
 			ls = ++k;
