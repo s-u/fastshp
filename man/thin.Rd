@@ -9,8 +9,8 @@
   are deemed to have no visual effect under the given tolerance.
 }
 \usage{
-thin(x, y, tolerance = 1e-4, lock = NULL, method = 2L)
-thin.shp(shp, tolerance = 1e-3, man.width = 5L, all = !is.data.frame(shp))
+thin(x, y, tolerance = 1e-4, lock = NULL, method = 2L, id = NULL)
+thin.shp(shp, tolerance = 1e-3, max.width = 5L, all = !is.data.frame(shp))
 }
 \arguments{
   \item{x}{x coordinates of the points}
@@ -26,6 +26,7 @@ thin.shp(shp, tolerance = 1e-3, man.width = 5L, all = !is.data.frame(shp))
     number of subsequently removed points. \code{2L} - slower
     (\code{O(n^2)}),more conservative method that guarantees
     \code{tolerance} accuracy even with increasing \code{n}.}
+  \item{id}{optional index}
   \item{shp}{shape object as returned by
     \code{read.shp(..., format="table")} or a connection/raw
     vector/filename which is passed to \code{\link{read.shp}} to obtain
@@ -115,10 +116,10 @@ Simon Urbanek
     cat(" reduction: ", 100 - sum(a) / length(a) * 100, "\%\n", sep='')
     par(mfrow=c(1, 2))
     # compare unconstrained and constrained thinning up close (NY/NJ area)
-    plot(0, 0, xlim=c(-74.22, -74.15), ylim=c(40.55,40.67), asp=1.25, axes=F)
+    plot(0, 0, xlim=c(-74.22, -74.15), ylim=c(40.55,40.67), asp=1.25, axes=FALSE)
     for (i in seq.int(s))
       polygon(s[[i]]$x[t[[i]]], s[[i]]$y[t[[i]]], col=c("#0000ff80","#80800080")[i \%\% 2 + 1L], border=1)
-    plot(0, 0, xlim=c(-74.22, -74.15), ylim=c(40.55,40.67), asp=1.25, axes=F)
+    plot(0, 0, xlim=c(-74.22, -74.15), ylim=c(40.55,40.67), asp=1.25, axes=FALSE)
     for (i in unique(st$id))
       polygon(st$x[st$id==i]*1.25, st$y[st$id==i], col=c("#0000ff80","#80800080")[i \%\% 2 + 1L], border=1)
   }

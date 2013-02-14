@@ -4,7 +4,7 @@
   Merges adjacent tiles (polygons) where possible
 }
 \description{
-  
+  \code{merges.tiles} merges adjacent polygons
 }
 \usage{
 merge.tiles(x, y, id = rep(1L, length(x)))
