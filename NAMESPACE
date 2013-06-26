@@ -1,2 +1,2 @@
-useDynLib(fastshp, shp_centroids, shp_inside, read_shp, merge_pts)
+useDynLib(fastshp, shp_centroids, shp_inside, shp_closest, read_shp, merge_pts)
 export(read.shp, thin, inside, thin.shp, centr)
