@@ -26,7 +26,7 @@ clip.shp <- function(shp, xlim, ylim, drop=FALSE) {
   ylim <- range(ylim)
   ## FIXME: this is inconsistent with all other results
   if (diff(xlim) == 0 || diff(ylim) == 0) return(NULL)
-  if (is.data.frame(shp)) shp <- table2list(shp, "list")
+  if (is.data.frame(shp)) shp <- table2list.shp(shp, "list")
   clip.x <- xlim[c(1L,2L,2L,1L)]
   clip.y <- ylim[c(1L,1L,2L,2L)]
   s <- lapply(shp, function(o) {

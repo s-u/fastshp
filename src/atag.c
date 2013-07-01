@@ -31,7 +31,7 @@
 */
 
 #include <stdlib.h>
-#include <strings.h>
+#include <string.h>
 
 #define USE_RINTERNALS
 #include <Rinternals.h>
