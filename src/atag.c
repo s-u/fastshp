@@ -43,7 +43,7 @@ static void add(int *where, int what, int width, int n) {
     where[i * n] = what;
 }
 
-SEXP atag(SEXP xv, SEXP yv, SEXP idv, SEXP ov, SEXP width) {
+SEXP C_atag(SEXP xv, SEXP yv, SEXP idv, SEXP ov, SEXP width) {
     int *id = INTEGER(idv), *o = INTEGER(ov), i, n = LENGTH(xv), *m, li, w = asInteger(width);
     double *x = REAL(xv), *y = REAL(yv), lx, ly;
     SEXP res = PROTECT(mkNamed(VECSXP, (const char*[]){ "adj", "fix", "ref", "" }));

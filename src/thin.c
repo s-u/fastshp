@@ -5,7 +5,7 @@
 
 #define ALG_N2  2
 
-SEXP thin(SEXP xv, SEXP yv, SEXP stol, SEXP lock, SEXP method, SEXP idv) {
+SEXP C_thin(SEXP xv, SEXP yv, SEXP stol, SEXP lock, SEXP method, SEXP idv) {
     SEXP res;
     int up = 0, n, *keep, i = 0, a = 0, alg = asInteger(method), lps = 0, *id = 0;
     double *x, *y, tol = asReal(stol);

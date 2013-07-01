@@ -1,61 +1,123 @@
 #include "clipper.hpp"
 
+#include <R.h>
+
 using namespace ClipperLib;
 
 #define FSCALE 2251799813685248.0
 
 static Polygons *polys_create(int n, int *part, double *x, double *y) {
-  Polygons *p = new Polygons();
-  Polygon cp;
-  int i, last;
-  for (i = 0; i < n; i++) {
-    if (i == 0)
-      last = part[0];
-    else if (last != part[i]) {
-      p->push_back(cp);
-      cp.clear();
-    }
-    cp.push_back(IntPoint(x[i] * FSCALE, y[i] * FSCALE));
-  }
-  if (cp.size())
-    p->push_back(cp);
-  return p;
+    Polygons *p = new Polygons();
+    Polygon cp;
+    int i, last;
+    if (part) /* index by part */
+	for (i = 0; i < n; i++) {
+	    if (i == 0)
+		last = part[0];
+	    else if (last != part[i]) {
+		p->push_back(cp);
+		cp.clear();
+	    }
+	    cp.push_back(IntPoint(x[i] * FSCALE, y[i] * FSCALE));
+	}
+    else /* NA splits polygons */
+	for (i = 0; i < n; i++)
+	    if (R_IsNA(x[i])) {
+		if (cp.size()) p->push_back(cp);
+		cp.clear();
+	    } else 
+		cp.push_back(IntPoint(x[i] * FSCALE, y[i] * FSCALE));
+    if (cp.size())
+	p->push_back(cp);
+    return p;
 }
 
 #define USE_RINTERNALS 1
 #include <Rinternals.h>
 
-extern "C" SEXP C_poly_intersect(SEXP p1_part, SEXP p1_x, SEXP p1_y, SEXP p2_part, SEXP p2_x, SEXP p2_y) {
-  Polygons resp;
-  Polygons *p1 = polys_create(LENGTH(p1_x),
-			      INTEGER(p1_part),
-			      REAL(p1_x), REAL(p1_y));
-  Polygons *p2 = polys_create(LENGTH(p2_x),
-			      INTEGER(p2_part),
-			      REAL(p2_x), REAL(p2_y));
-  Clipper c;
-  c.AddPolygons(*p1, ptSubject);
-  c.AddPolygons(*p2, ptClip);
-  c.Execute(ctIntersection, resp);
-  delete p1;
-  delete p2;
-  int ps = resp.size(), totn = 0, i, k = 0;
-  for (i = 0; i < ps; i++)
-    totn += resp[i].size();
-  SEXP res = PROTECT(mkNamed(VECSXP, (const char*[]) { "part", "x", "y", "" }));
-  int *pp = INTEGER(SET_VECTOR_ELT(res, 0, allocVector(INTSXP, totn)));
-  double *px = REAL(SET_VECTOR_ELT(res, 1, allocVector(REALSXP, totn)));
-  double *py = REAL(SET_VECTOR_ELT(res, 2, allocVector(REALSXP, totn)));
-  for (i = 0; i < ps; i++) {
-    Polygon p = resp[i];
-    int n = p.size();
-    for (int j = 0; j < n; j++) {
-      px[k] = ((double) p[j].X ) / FSCALE;
-      py[k] = ((double) p[j].Y ) / FSCALE;
-      pp[k] = i + 1;
-      k++;
+#define POLY_INT 0  /* intersection */
+#define POLY_UNI 1  /* union */
+#define POLY_DIF 2  /* difference */
+#define POLY_XOR 3
+
+extern "C" SEXP C_poly_op(SEXP p1_part, SEXP p1_x, SEXP p1_y, SEXP p2_part, SEXP p2_x, SEXP p2_y, SEXP sOP) {
+    int pc = 0;
+    Polygons resp;
+    ClipType cty;
+    int op = asInteger(sOP);
+    switch (op) {
+    case POLY_INT: cty = ctIntersection; break;
+    case POLY_UNI: cty = ctUnion; break;
+    case POLY_DIF: cty = ctDifference; break;
+    case POLY_XOR: cty = ctXor; break;
+    default: Rf_error("invalid operation");
     }
-  }
-  UNPROTECT(1);
-  return res;
+    if (p1_part != R_NilValue && TYPEOF(p1_part) != INTSXP) {
+	if (TYPEOF(p1_part) == REALSXP) {
+	    p1_part = PROTECT(coerceVector(p1_part, INTSXP));
+	    pc++;
+	} else Rf_error("invalid part ID type - must be a numeric vector or NULL");
+    }
+    if (p2_part != R_NilValue && TYPEOF(p2_part) != INTSXP) {
+	if (TYPEOF(p2_part) == REALSXP) {
+	    p2_part = PROTECT(coerceVector(p2_part, INTSXP));
+	    pc++;
+	} else Rf_error("invalid part ID type - must be a numeric vector or NULL");
+    }
+    if (TYPEOF(p1_x) != REALSXP) {
+	p1_x = PROTECT(coerceVector(p1_x, REALSXP));
+	pc++;
+    }
+    if (TYPEOF(p1_y) != REALSXP) {
+	p1_y = PROTECT(coerceVector(p1_y, REALSXP));
+	pc++;
+    }
+    if (TYPEOF(p2_x) != REALSXP) {
+	p2_x = PROTECT(coerceVector(p2_x, REALSXP));
+	pc++;
+    }
+    if (TYPEOF(p2_y) != REALSXP) {
+	p2_y = PROTECT(coerceVector(p2_y, REALSXP));
+	pc++;
+    }
+    if (LENGTH(p1_x) != LENGTH(p1_y) ||
+	LENGTH(p2_x) != LENGTH(p2_y))
+	Rf_error("vector length mismatch - both x and y must be of the same length");
+    Polygons *p1 = polys_create(LENGTH(p1_x),
+				(p1_part == R_NilValue) ? 0 : INTEGER(p1_part),
+				REAL(p1_x), REAL(p1_y));
+    Polygons *p2 = polys_create(LENGTH(p2_x),
+				(p2_part == R_NilValue) ? 0 : INTEGER(p2_part),
+				REAL(p2_x), REAL(p2_y));
+    Clipper c;
+    c.AddPolygons(*p1, ptSubject);
+    c.AddPolygons(*p2, ptClip);
+    c.Execute(cty, resp);
+    delete p1;
+    delete p2;
+    int ps = resp.size(), totn = 0, i, k = 0, xo = 0, *pp = 0;
+    SEXP res;
+    for (i = 0; i < ps; i++)
+	totn += resp[i].size();
+    if (p1_part == R_NilValue) {
+	res = PROTECT(mkNamed(VECSXP, (const char*[]) { "x", "y", "" }));
+    } else {
+	res = PROTECT(mkNamed(VECSXP, (const char*[]) { "part", "x", "y", "" }));
+	pp = INTEGER(SET_VECTOR_ELT(res, xo++, allocVector(INTSXP, totn)));
+    }
+    pc++;
+    double *px = REAL(SET_VECTOR_ELT(res, xo++, allocVector(REALSXP, totn)));
+    double *py = REAL(SET_VECTOR_ELT(res, xo, allocVector(REALSXP, totn)));
+    for (i = 0; i < ps; i++) {
+	Polygon p = resp[i];
+	int n = p.size();
+	for (int j = 0; j < n; j++) {
+	    px[k] = ((double) p[j].X ) / FSCALE;
+	    py[k] = ((double) p[j].Y ) / FSCALE;
+	    pp[k] = i + 1;
+	    k++;
+	}
+    }
+    UNPROTECT(pc);
+    return res;
 }
