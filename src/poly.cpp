@@ -40,11 +40,11 @@ static Polygons *polys_create(int n, int *part, double *x, double *y) {
 #define POLY_DIF 2  /* difference */
 #define POLY_XOR 3
 
-extern "C" SEXP C_poly_op(SEXP p1_part, SEXP p1_x, SEXP p1_y, SEXP p2_part, SEXP p2_x, SEXP p2_y, SEXP sOP) {
+extern "C" SEXP C_poly_op(SEXP p1_part, SEXP p1_x, SEXP p1_y, SEXP p2_part, SEXP p2_x, SEXP p2_y, SEXP sOP, SEXP sOutPars, SEXP sExpand) {
     int pc = 0;
     Polygons resp;
     ClipType cty;
-    int op = asInteger(sOP);
+    int op = asInteger(sOP), out_pars = asInteger(sOutPars), expand = asInteger(sExpand);
     switch (op) {
     case POLY_INT: cty = ctIntersection; break;
     case POLY_UNI: cty = ctUnion; break;
@@ -95,27 +95,35 @@ extern "C" SEXP C_poly_op(SEXP p1_part, SEXP p1_x, SEXP p1_y, SEXP p2_part, SEXP
     c.Execute(cty, resp);
     delete p1;
     delete p2;
-    int ps = resp.size(), totn = 0, i, k = 0, xo = 0, *pp = 0;
-    SEXP res;
-    for (i = 0; i < ps; i++)
-	totn += resp[i].size();
-    if (p1_part == R_NilValue) {
-	res = PROTECT(mkNamed(VECSXP, (const char*[]) { "x", "y", "" }));
-    } else {
-	res = PROTECT(mkNamed(VECSXP, (const char*[]) { "part", "x", "y", "" }));
-	pp = INTEGER(SET_VECTOR_ELT(res, xo++, allocVector(INTSXP, totn)));
-    }
+    int ps = resp.size(), totn = 0, i, k = 0, *pp = 0, exp_add = 0, *pix = 0;
+    SEXP res = PROTECT(mkNamed(VECSXP, (const char*[]) { "part", "x", "y", "" }));
     pc++;
-    double *px = REAL(SET_VECTOR_ELT(res, xo++, allocVector(REALSXP, totn)));
-    double *py = REAL(SET_VECTOR_ELT(res, xo, allocVector(REALSXP, totn)));
+    if (out_pars) {
+	SET_STRING_ELT(getAttrib(res, R_NamesSymbol), 0, mkChar("parts"));
+	pix = INTEGER(SET_VECTOR_ELT(res, 0, allocVector(INTSXP, ps)));
+    }
+    for (i = 0; i < ps; i++) {
+	if (pix) pix[i] = totn;
+	totn += resp[i].size();
+    }
+    if (!out_pars)
+	pp = INTEGER(SET_VECTOR_ELT(res, 0, allocVector(INTSXP, totn)));
+    if (expand && ps > 1)
+	exp_add = ps - 1;
+    double *px = REAL(SET_VECTOR_ELT(res, 1, allocVector(REALSXP, totn + exp_add)));
+    double *py = REAL(SET_VECTOR_ELT(res, 2, allocVector(REALSXP, totn + exp_add)));
     for (i = 0; i < ps; i++) {
 	Polygon p = resp[i];
 	int n = p.size();
 	for (int j = 0; j < n; j++) {
 	    px[k] = ((double) p[j].X ) / FSCALE;
 	    py[k] = ((double) p[j].Y ) / FSCALE;
-	    pp[k] = i + 1;
+	    if (pp) pp[k] = i + 1;
 	    k++;
+	}
+	if (expand && i < ps - 1) {
+	    px[k] = R_NaReal;
+	    py[k++] = R_NaReal;
 	}
     }
     UNPROTECT(pc);

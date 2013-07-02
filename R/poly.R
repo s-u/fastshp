@@ -18,7 +18,7 @@ polygons.op <- function(subject, clip, op=c("intersection", "union", "difference
   op <- match(match.arg(op), c("intersection", "union", "difference", "xor")) - 1L
   p1 <- .extract.polygons(subject)
   p2 <- .extract.polygons(clip)
-  .Call(C_poly_op, p1$part, p1$x, p1$y, p2$part, p2$x, p2$y)
+  .Call(C_poly_op, p1$part, p1$x, p1$y, p2$part, p2$x, p2$y, op, FALSE, FALSE)
 }
 
 clip.shp <- function(shp, xlim, ylim, drop=FALSE) {
@@ -35,12 +35,12 @@ clip.shp <- function(shp, xlim, ylim, drop=FALSE) {
       l <- list()
     } else {
       l <- .extract.polygons(o)
-      l <- .Call(C_poly_op, l$part, l$x, l$y, NULL, clip.x, clip.y)
+      l <- .Call(C_poly_op, l$part, l$x, l$y, NULL, clip.x, clip.y, 0L, TRUE, FALSE)
     }
     if (!length(l$x)) {
       if (drop) NULL else list(id=o$id, type=o$type, box=numeric(0), parts=integer(0), x=numeric(0), y=numeric(0))
     } else list(id=o$id, type=o$type, box=c(range(l$x),range(l$y))[c(1L,3L,2L,4L)],
-                parts=c(0L, which(l$part[-1L] != l$part[-length(l$part)])), x=l$x, y=l$y)
+                parts=l$parts, x=l$x, y=l$y)
   })
   if (!is.null(names(shp))) names(s) <- names(shp)
   if (drop) s <- s[!unlist(lapply(s, is.null))]
