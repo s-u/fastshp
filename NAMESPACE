@@ -1,2 +1,2 @@
-useDynLib(fastshp, shp_centroids, shp_inside, shp_closest, read_shp, merge_pts, C_poly_op, C_bboxes, C_expand_vec, C_atag, C_thin)
-export(read.shp, thin, inside, thin.shp, centr, polygons.op, bbox.filter, clip.shp, polypath.shp, plot.shp)
+useDynLib(fastshp, shp_centroids, shp_inside, shp_closest, read_shp, merge_pts, C_poly_op, C_bboxes, C_expand_vec, C_atag, C_thin, do_sat, sat_match)
+export(read.shp, thin, inside, thin.shp, centr, polygons.op, bbox.filter, clip.shp, polypath.shp, plot.shp, match.sat, overlap.sat)

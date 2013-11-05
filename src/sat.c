@@ -98,3 +98,30 @@ SEXP do_sat(SEXP sx1, SEXP sy1, SEXP sx2, SEXP sy2) {
     return ScalarLogical(sat(p1, p2));
 }
 
+polygon_t list2polygon(SEXP s) {
+    polygon_t p;
+    SEXP x, y;
+    if (TYPEOF(s) != VECSXP || LENGTH(s) < 2 ||
+	TYPEOF((x = VECTOR_ELT(s, 0))) != REALSXP || TYPEOF((y = VECTOR_ELT(s, 1))) != REALSXP ||
+	LENGTH(x) != LENGTH(y))
+	Rf_error("item is not a polygon");
+    p.n = LENGTH(x);
+    p.x = REAL(x);
+    p.y = REAL(y);
+    return p;
+}
+
+SEXP sat_match(SEXP sItems, SEXP sTable) {
+    int ni = LENGTH(sItems), nt = LENGTH(sTable), i, j;
+    SEXP res = allocVector(INTSXP, ni);
+    int *mid = INTEGER(res);
+    for (i = 0; i < ni; i++) {
+	polygon_t p = list2polygon(VECTOR_ELT(sItems, i));
+	for (j = 0; j < nt; j++) {
+	    polygon_t pt = list2polygon(VECTOR_ELT(sTable, j));
+	    if (sat(p, pt)) break;
+	}
+	mid[i] = (j < nt) ? (j + 1) : NA_INTEGER;
+    }
+    return res;
+}
