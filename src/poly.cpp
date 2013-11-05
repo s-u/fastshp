@@ -96,7 +96,12 @@ extern "C" SEXP C_poly_op(SEXP p1_part, SEXP p1_x, SEXP p1_y, SEXP p2_part, SEXP
     delete p1;
     delete p2;
     int ps = resp.size(), totn = 0, i, k = 0, *pp = 0, exp_add = 0, *pix = 0;
-    SEXP res = PROTECT(mkNamed(VECSXP, (const char*[]) { "part", "x", "y", "" }));
+    /* apparently C++ is dumb and doesn't allow temporary initializers in calls
+       (like there are not 1e6 other ways to shoot yourself in the foot) *sigh*
+       hence we have to use a static for this - which is ugly as hell, but then
+       it's C++ after all so how can you tell ? ;) */
+    static const char* names_[] = { "part", "x", "y", "" }; 
+    SEXP res = PROTECT(mkNamed(VECSXP, names_));
     pc++;
     if (out_pars) {
 	SET_STRING_ELT(getAttrib(res, R_NamesSymbol), 0, mkChar("parts"));
