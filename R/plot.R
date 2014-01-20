@@ -2,7 +2,7 @@
 ## so there are two unnecessary copies for each coordinate ... while we can jsut pass them directly
 .onLoad <- function(...) {
   gre <- asNamespace("graphics")
-  if (exists("C_path",gre)
+  if (exists("C_path",gre))
     environment(.onLoad)$C_path <- get("C_path", gre)
   ## FIXME: polypath won't work if C_path is not found, but at least
   ## the package will load ...
