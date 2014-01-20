@@ -1,7 +1,11 @@
 ## R's polypath is horribly inefficient because the R-level API requires breaks and the internal removes them
 ## so there are two unnecessary copies for each coordinate ... while we can jsut pass them directly
 .onLoad <- function(...) {
-  environment(.onLoad)$C_path <- graphics:::C_path
+  gre <- asNamespace("graphics")
+  if (exists("C_path",gre)
+    environment(.onLoad)$C_path <- get("C_path", gre)
+  ## FIXME: polypath won't work if C_path is not found, but at least
+  ## the package will load ...
 }
 
 polypath.shp <- function(so, col="#e0e0e0", border="#808080", lty=1L, ...) .External.graphics(C_path, so$x, so$y, diff(c(so$parts, length(so$x))), 1L, col, border, lty, ...)
