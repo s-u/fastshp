@@ -193,9 +193,53 @@ SEXP read_shp(SEXP what, SEXP format, SEXP do_close) {
 		yy[i] = double_val(lbuf + i * 16 + 8, E_LITTLE);
 	    }
 	    pos += len;
+	} else if (sty == 8) { /* multipoint (MBR, # pts, points) */
+	    rect_t box;
+	    int npts;
+	    double *vv;
+	    SEXP v;
+	    if (len < 36) {
+		Rf_warning("Invalid record (length %d is too small for the type 8 [points] at position %d), returning results so far", len, pos);
+		break;
+	    }
+	    if ((n = io_read(io, buf + 12, 1, 36)) != 36) {
+		Rf_warning("Read error at position %ld (id=%d, type=%d), returning result so far", pos, rec, sty);
+		break;
+	    }
+	    box = rect_val(buf + 12);
+	    npts = int_val(buf + 44, E_LITTLE);
+	    if (npts < 0) {
+		Rf_warning("Invalid number of points %d at position %d, returning results so far", npts, pos);
+		break;
+	    }
+	    if (npts >= lbuf_size) {
+		while (lbuf_size <= npts) lbuf_size <<= 1;
+		lbuf = R_alloc(lbuf_size, 16);
+	    }
+	    if (io_read(io, lbuf, 16, npts) != npts) {
+		Rf_warning("Read error at position %ld (id=%d, type=%d), returning result so far", pos, rec, sty);
+		break;
+	    }
+	    
+	    /* Rprintf("  pts: %d\n", npts); */
+	    v = allocMatrix(REALSXP, npts, 2);
+	    if (!root)
+		PROTECT(root = tail = list1(v));
+	    else {
+		SEXP nl = list1(v);
+		SETCDR(tail, nl);
+		tail = nl;
+	    }
+	    pos += len;
+	    vv = REAL(v);
+	    for (i = 0; i < npts; i++) {
+		vv[i * 2] = double_val(lbuf + i * 16, E_LITTLE);
+		vv[i * 2 + 1] = double_val(lbuf + i * 16 + 8, E_LITTLE);
+	    }
+	    pos += len;
 	} else {
-	    /* other: 1 = point (X,Y)
-	     *        8 = multipoint (MBR, # pts, points) */
+	    /* other: 1 = point (X,Y) */
+	    pos += len;
 	    io_seek(io, pos); /* skip unknown records */
 	}
     }
