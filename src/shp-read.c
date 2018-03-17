@@ -233,8 +233,8 @@ SEXP read_shp(SEXP what, SEXP format, SEXP do_close) {
 	    pos += len;
 	    vv = REAL(v);
 	    for (i = 0; i < npts; i++) {
-		vv[i * 2] = double_val(lbuf + i * 16, E_LITTLE);
-		vv[i * 2 + 1] = double_val(lbuf + i * 16 + 8, E_LITTLE);
+		vv[i] = double_val(lbuf + i * 16, E_LITTLE);
+		vv[i + npts] = double_val(lbuf + i * 16 + 8, E_LITTLE);
 	    }
 	    pos += len;
 	} else {
