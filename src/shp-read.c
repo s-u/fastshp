@@ -124,7 +124,7 @@ SEXP read_shp(SEXP what, SEXP format, SEXP do_close) {
     }
     shp_type = int_val(buf + 32, E_LITTLE);
     bbox = rect_val(buf + 36);
-    /* Rprintf("type=%d, bbox = { %g, %g, %g, %g }\n", shp_type, bbox.x1, bbox.y1, bbox.x2, bbox.y2); */
+    Rprintf("type=%d, bbox = { %g, %g, %g, %g }\n", shp_type, bbox.x1, bbox.y1, bbox.x2, bbox.y2);
     flen = int_val(buf + 24, E_BIG);
     flen <<= 1;
     lbuf = R_alloc(lbuf_size, 16);
@@ -144,9 +144,9 @@ SEXP read_shp(SEXP what, SEXP format, SEXP do_close) {
 	    Rf_error("invalid chunk at %ld (type=%d, length/2=%d), aborting", pos, sty, len);
 	}
 	len <<= 1;
-	/* printf("%d) [%d] %d bytes\n", rec, sty, len); */
+	printf("%d) [%d] %d bytes\n", rec, sty, len);
 	pos += 8;
-	if (sty == 3 || sty ==5) { /* poly{gon|line} */
+	if (sty == 3 || sty == 5 || sty == 13 || sty == 15) { /* poly{gon|line}; 1x are Z-versions */
 	    rect_t box;
 	    int npart, npts;
 	    SEXP sx, sy;
@@ -167,7 +167,7 @@ SEXP read_shp(SEXP what, SEXP format, SEXP do_close) {
 	    box = rect_val(buf + 12);
 	    npart = int_val(buf + 44, E_LITTLE);
 	    npts = int_val(buf + 48, E_LITTLE);
-	    /* Rprintf("  parts: %d, pts: %d\n", npart, npts); */
+	    Rprintf("  parts: %d, pts: %d\n", npart, npts);
 	    SET_VECTOR_ELT(v, 0, ScalarInteger(rec));
 	    SET_VECTOR_ELT(v, 1, ScalarInteger(sty));
 	    SET_VECTOR_ELT(v, 2, rbox(box));
@@ -193,6 +193,7 @@ SEXP read_shp(SEXP what, SEXP format, SEXP do_close) {
 		yy[i] = double_val(lbuf + i * 16 + 8, E_LITTLE);
 	    }
 	    pos += len;
+	    io_seek(io, pos); /* skip Z range, Z array and optional M range + M array */
 	} else if (sty == 8) { /* multipoint (MBR, # pts, points) */
 	    rect_t box;
 	    int npts;
